@@ -12,7 +12,7 @@
   "update.link": "&7Download: &b%1$s",
   "update.console": "Update available: %1$s (current %2$s) — %3$s",
 
-  "wizard.intro": "&7ChunkBench by &bpozii&7 — auditing &fthis server only&7.",
+  "wizard.intro": "&7ChunkBench — auditing &fthis server only&7.",
   "wizard.step.players": "&eStep 1/4 — Target players",
   "wizard.step.players.hint": "&7Type a &fnumber&7, or &fconfirm &7to use &fmax-players &7from server.properties.",
   "wizard.cancel-hint": "&8(Type &7cancel &8to abort.)",

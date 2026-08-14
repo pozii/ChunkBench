@@ -49,7 +49,6 @@ public final class McLogsClient {
         sb.append("\"content\":").append(jsonString(content)).append(',');
         sb.append("\"source\":").append(jsonString(source)).append(',');
         sb.append("\"metadata\":[");
-        sb.append(meta("author", "pozii", "Author", true)).append(',');
         sb.append(meta("score", String.valueOf(result.overallScore), "Server Score", true)).append(',');
         sb.append(meta("chunk_score", String.valueOf(result.chunkScore), "Chunk Score", true)).append(',');
         sb.append(meta("target_players", String.valueOf(result.inputs.targetPlayers), "Target Players", true)).append(',');
@@ -108,7 +107,7 @@ public final class McLogsClient {
         conn.setDoOutput(true);
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", contentType);
-        conn.setRequestProperty("User-Agent", "ChunkBench/1.0 (pozii)");
+        conn.setRequestProperty("User-Agent", "ChunkBench");
         byte[] bytes = body.getBytes("UTF-8");
         conn.setRequestProperty("Content-Length", String.valueOf(bytes.length));
         OutputStream out = conn.getOutputStream();

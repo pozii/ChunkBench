@@ -26,7 +26,7 @@ public final class ChunkBenchPlugin extends JavaPlugin {
         ChunkBenchCommand executor = new ChunkBenchCommand(this, wizard);
         cmd.setExecutor(executor);
         cmd.setTabCompleter(executor);
-        getLogger().info("ChunkBench by pozii enabled (" + lang.getLanguage() + ").");
+        getLogger().info("ChunkBench enabled (" + lang.getLanguage() + ").");
         updateChecker.start();
     }
 

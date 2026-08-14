@@ -1,12 +1,8 @@
 # Contributing to ChunkBench
 
-Thanks for helping improve **ChunkBench** (author: **pozii**).
+Thanks for helping improve **ChunkBench**.
 
-## License agreement
-
-By submitting a pull request or other contribution, you agree that your contribution is licensed under the **PolyForm Shield 1.0.0** terms in [LICENSE](LICENSE), and that you have the right to submit it under those terms.
-
-ChunkBench is source-available with a **noncompete** clause: do not use this codebase to provide a competing product or to integrate a practical substitute into another application.
+By submitting a pull request, you agree to the terms in [LICENSE](LICENSE).
 
 ## How to contribute
 

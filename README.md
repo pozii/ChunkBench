@@ -1,6 +1,6 @@
 # ChunkBench
 
-**ChunkBench** is a Minecraft plugin by [pozii](https://github.com/pozii) that audits **your own** Java Edition server and scores how well it can handle a target player count — focusing on chunk loading and overall speed — **without stress bots**.
+**ChunkBench** is a Minecraft plugin that audits **your own** Java Edition server and scores how well it can handle a target player count — focusing on chunk loading and overall speed — **without stress bots**.
 
 Drop the jar in, run `/chunkbench`, answer a short wizard, and get a scored report you can share via [mclo.gs](https://mclo.gs).
 
