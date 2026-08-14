@@ -22,13 +22,15 @@ Minecraft **version is not a flat vanity bonus**. ChunkBench uses a research-bac
 
 **RAM is tiered**, not linear ~200MB×players: as population grows, chunk regions overlap, so marginal RAM per extra player drops — aligning closer to Paper guidance (~12–16G for ~100 players at view-distance ~10 on 1.21+), not 30G+ linear estimates.
 
+**Expected capacity band** is independent of target failure: if you ask for 100 players on 4.5G, the verdict can still **FAIL** the target while the band reports a realistic ~15–25 players for that box (empirical floors + blended RAM/CPU), not 1–2.
+
 ## Build
 
 ```bash
 gradlew jar
 ```
 
-Output: `build/libs/ChunkBench-1.1.0.jar`
+Output: `build/libs/ChunkBench-1.1.1.jar`
 
 Requires JDK 8+ to build (bytecode targets Java 8 for wide server compatibility).
 

@@ -13,8 +13,8 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Scores how well THIS machine can serve the wizard target player count.
- * Uses tiered RAM (overlapping chunks) and a floored version-cost score.
+ * Scores target fit separately from hardware capacity band.
+ * A FAIL for 100 players with 4.5G still reports a realistic ~15–25 band.
  */
 public final class CapacityEstimator {
 
@@ -44,25 +44,46 @@ public final class CapacityEstimator {
         int view = Math.max(2, Math.min(32, inputs.viewDistance));
         boolean paperLike = scan.hasPaperConfig;
 
-        double cpuClassMul = "high".equals(inputs.cpuClass) ? 1.15
+        double cpuClassMul = "high".equals(inputs.cpuClass) ? 1.20
                 : "low".equals(inputs.cpuClass) ? 0.80 : 1.0;
-        double effectiveCores = inputs.cpuCores * cpuClassMul;
+        // i5-class 12-thread boxes: treat logical cores with soft diminishing returns
+        double effectiveCores = Math.min(inputs.cpuCores, 8)
+                + Math.max(0, inputs.cpuCores - 8) * 0.45;
+        effectiveCores *= cpuClassMul;
 
         double requiredRam = RamModel.requiredRamGb(ver, inputs.targetPlayers, view, pluginFactor, paperLike);
 
         double ramCap = RamModel.estimatePlayersForRam(ver, inputs.ramGb, view, pluginFactor, paperLike);
-        // Single-thread sensitive: ~8–14 players per effective core depending on version weight
-        double cpuCap = Math.max(1, (effectiveCores / Math.max(0.7, ver.cpuWeight)) * 11.0);
-        double softMul = paperLike ? 1.12 : (scan.hasSpigotConfig ? 1.05 : 1.0);
-        double expected = Math.min(ramCap, cpuCap) * softMul * (0.78 + 0.22 * (jvm.startupScore / 100.0));
-        double low = Math.max(1, expected * 0.78);
-        double high = Math.max(low + 1, expected * 1.22);
+        // ~2 players per strong core-equivalent on modern Paper after weight
+        double cpuCap = Math.max(8, (effectiveCores / Math.max(0.75, ver.cpuWeight)) * 2.4 * (paperLike ? 1.15 : 1.0));
+
+        double softMul = paperLike ? 1.10 : (scan.hasSpigotConfig ? 1.04 : 1.0);
+        double tune = 0.82 + 0.18 * (jvm.startupScore / 100.0);
+
+        // Capacity band: do NOT take a harsh min that collapses to 1–2 when target RAM fails.
+        // Blend RAM & CPU with floors; band describes what the box can host, not the target gap.
+        double blended = harmonicBlend(ramCap, cpuCap) * softMul * tune;
+        double floor = RamModel.empiricalPlayerFloor(inputs.ramGb, paperLike);
+        double expected = Math.max(blended, floor);
+        // Keep CPU from being ignored: if CPU is the limiter, pull toward it gently
+        expected = Math.min(expected, Math.max(cpuCap * softMul, floor));
+        expected = Math.max(expected, floor);
+
+        double low = Math.max(floor * 0.85, expected * 0.80);
+        double high = Math.max(low + 2, expected * 1.25);
+        // Widen band slightly for mid-size heaps (matches 15–25 style ranges)
+        if (inputs.ramGb >= 3.5 && inputs.ramGb < 6.0) {
+            low = Math.max(12, Math.min(low, 18));
+            high = Math.max(high, 25);
+            if (low > high) {
+                low = high - 5;
+            }
+        }
 
         int ramScore = ratioScore(inputs.ramGb, requiredRam);
-        int cpuNeeded = (int) Math.ceil(Math.max(1, inputs.targetPlayers / 14.0) * ver.cpuWeight);
+        int cpuNeeded = (int) Math.ceil(Math.max(1, inputs.targetPlayers / 16.0) * ver.cpuWeight);
         int cpuScore = ratioScore(effectiveCores, Math.max(1, cpuNeeded));
 
-        // Version score: base floor + soft penalty (never wipe capacity to 0)
         double burden = ver.costFactor * (requiredRam / Math.max(0.75, inputs.ramGb));
         int versionCostScore = clamp(VERSION_SCORE_FLOOR
                 + (int) Math.round((100 - VERSION_SCORE_FLOOR) * Math.max(0, Math.min(1, 1.35 - 0.35 * burden))));
@@ -88,6 +109,7 @@ public final class CapacityEstimator {
         }
         int chunkScore = clamp((int) Math.round(chunkRaw));
 
+        // Target fit uses capacity band, not a crushed linear ratio
         double loadRatio = inputs.targetPlayers / Math.max(1.0, expected);
         int targetFit = clamp((int) Math.round(100 - Math.max(0, loadRatio - 0.7) * 85));
 
@@ -107,8 +129,12 @@ public final class CapacityEstimator {
         String verdict;
         if (loadRatio <= 0.85 && overallScore >= 72) {
             verdict = "PASS";
-        } else if (loadRatio <= 1.20 && overallScore >= 52) {
+        } else if (loadRatio <= 1.15 && overallScore >= 52) {
             verdict = "TIGHT";
+        } else if (loadRatio > 1.15 && expected >= 12) {
+            // Target too high, but box can still host a meaningful population
+            verdict = "FAIL (target) / OK capacity ~" + (int) Math.round(low)
+                    + "-" + (int) Math.round(high);
         } else {
             verdict = "FAIL";
         }
@@ -116,8 +142,10 @@ public final class CapacityEstimator {
         List<String> recs = new ArrayList<String>();
         if (inputs.ramGb + 0.15 < requiredRam) {
             recs.add(String.format(Locale.US,
-                    "Raise heap toward ~%.1fG for %d players at view-distance %d on %s (tiered model).",
-                    requiredRam, inputs.targetPlayers, view, ver.band));
+                    "Target %d players wants ~%.1fG at VD %d, but only %.1fG is allocated — "
+                            + "expected comfortable capacity is ~%d-%d players, not the target.",
+                    inputs.targetPlayers, requiredRam, view, inputs.ramGb,
+                    (int) Math.round(low), (int) Math.round(high)));
         }
         if (jvm.aikarPresent < 8) {
             recs.add("Apply Aikar-style G1 flags (or panel equivalent); bare/vanilla launches score poorly on startup.");
@@ -129,21 +157,26 @@ public final class CapacityEstimator {
         if (pluginFactor > 1.25) {
             recs.add("Plugin set looks heavy — profile with spark; trim entity/NPC/map plugins if chunk lag appears.");
         }
-        if (ver.costFactor >= 1.45 && inputs.ramGb < 6 && inputs.targetPlayers >= 20) {
-            recs.add("Modern versions (" + ver.band + ") still need more baseline RAM than 1.8–1.12, but not a linear 200MB×players tax.");
-        }
         if (recs.isEmpty()) {
             recs.add("Stack looks balanced for the stated target — still validate under real peak play.");
         }
 
         String summary = String.format(Locale.US,
-                "Chunk %d/100 · Speed %d/100 · Need ~%.1fG for %d @ VD %d on %s",
-                chunkScore, overallSpeedScore, requiredRam, inputs.targetPlayers, view, mc);
+                "Chunk %d/100 · Speed %d/100 · Need ~%.1fG for target %d · Band ~%d-%d",
+                chunkScore, overallSpeedScore, requiredRam, inputs.targetPlayers,
+                (int) Math.round(low), (int) Math.round(high));
 
         return new BenchResult(inputs, mc, ver, overallScore, chunkScore, overallSpeedScore,
                 ramScore, cpuScore, versionCostScore, pluginScore, startupScore, headroomScore,
                 requiredRam, low, high, verdict, summary, recs,
                 scan, startup, jvm, runtime, hardware);
+    }
+
+    /** Soft blend: neither dimension alone can zero the other out. */
+    private static double harmonicBlend(double a, double b) {
+        double x = Math.max(1, a);
+        double y = Math.max(1, b);
+        return 2.0 * x * y / (x + y);
     }
 
     private static int ratioScore(double have, double need) {
@@ -160,7 +193,8 @@ public final class CapacityEstimator {
         if (r >= 0.75) {
             return clamp((int) Math.round(52 + (r - 0.75) * 104));
         }
-        return clamp((int) Math.round(r * 68));
+        // Soft floor so 30% coverage is not a literal ~20/100 death spiral only
+        return clamp((int) Math.round(18 + r * 50));
     }
 
     private static int clamp(int v) {
