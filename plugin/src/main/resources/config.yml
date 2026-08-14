@@ -1,3 +1,6 @@
 # Available languages live in plugins/ChunkBench/lang/
 # Add tr_TR.json (etc.) and set language below, then /chunkbench reload
 language: en_US
+
+# Check GitHub for new releases and warn OPs / chunkbench.run players
+update-check: true

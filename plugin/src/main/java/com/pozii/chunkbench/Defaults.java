@@ -27,6 +27,11 @@ public final class Defaults {
     public static final String DEFAULT_LANGUAGE = "en_US";
     public static final String DEFAULT_PREFIX = "&8[&bChunkBench&8]&r ";
 
+    public static final String UPDATE_API_LATEST =
+            "https://api.github.com/repos/pozii/ChunkBench/releases/latest";
+    public static final String UPDATE_RELEASES_URL =
+            "https://github.com/pozii/ChunkBench/releases";
+
     private Defaults() {
     }
 }

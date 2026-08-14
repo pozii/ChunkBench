@@ -7,7 +7,10 @@
   "error.cancelled": "&eBench cancelled.",
   "error.bench-failed": "&cBench failed: &f%1$s",
   "reload.ok": "&aReloaded config and language (&f%1$s&a).",
-  "reload.usage": "&7Usage: &f/chunkbench reload",
+  "reload.usage": "&7Usage: &f/chunkbench [cancel|reload]",
+  "update.available": "&eUpdate available: &f%1$s &7(you have &f%2$s&7).",
+  "update.link": "&7Download: &b%1$s",
+  "update.console": "Update available: %1$s (current %2$s) — %3$s",
 
   "wizard.intro": "&7ChunkBench by &bpozii&7 — auditing &fthis server only&7.",
   "wizard.step.players": "&eStep 1/4 — Target players",
