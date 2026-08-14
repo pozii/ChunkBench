@@ -3,24 +3,13 @@ package com.pozii.chunkbench.report;
 import com.pozii.chunkbench.estimate.BenchResult;
 import com.pozii.chunkbench.scan.ServerRootScanner;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Locale;
 import java.util.Map;
-import java.util.TimeZone;
 
 public final class ReportBuilder {
 
     public String build(BenchResult r) {
         StringBuilder sb = new StringBuilder(8192);
-        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss 'UTC'", Locale.US);
-        df.setTimeZone(TimeZone.getTimeZone("UTC"));
-
-        sb.append("=== ChunkBench Report ===\n");
-        sb.append("Author: pozii\n");
-        sb.append("Generated: ").append(df.format(new Date())).append('\n');
-        sb.append("License: PolyForm Shield 1.0.0 (contributions welcome; no competing products)\n");
-        sb.append('\n');
 
         sb.append("--- Target ---\n");
         sb.append("Players: ").append(r.inputs.targetPlayers)
@@ -82,7 +71,7 @@ public final class ReportBuilder {
         }
         sb.append('\n');
 
-        sb.append("--- Scan (worlds excluded) ---\n");
+        sb.append("--- Scan ---\n");
         sb.append("Root: ").append(r.scan.rootPath).append('\n');
         sb.append("Files seen: ").append(r.scan.filesSeen).append('\n');
         sb.append("Startup scripts: ").append(r.scan.startupScripts.size()).append('\n');
@@ -122,11 +111,6 @@ public final class ReportBuilder {
         for (String rec : r.recommendations) {
             sb.append(" - ").append(rec).append('\n');
         }
-        sb.append('\n');
-        sb.append("Disclaimer: Worlds were not scanned. Estimates are model-based ");
-        sb.append("(version resource research + RAM/CPU/plugins/startup). ");
-        sb.append("Farms, redstone, and custom plugins can dominate real capacity.\n");
-        sb.append("ChunkBench by pozii\n");
         return sb.toString();
     }
 

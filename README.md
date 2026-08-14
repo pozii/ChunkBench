@@ -30,40 +30,6 @@ Minecraft **version is not a flat vanity bonus**. ChunkBench uses a research-bac
 gradlew jar
 ```
 
-Output: `build/libs/ChunkBench-1.1.1.jar`
+Output: `build/libs/ChunkBench-1.1.3.jar`
 
 Requires JDK 8+ to build (bytecode targets Java 8 for wide server compatibility).
-
-## CI / Releases
-
-GitHub Actions:
-
-- **CI** — builds on every push/PR to `main` and uploads a build **artifact**
-- **Release** — on tag `v*` (or manual **workflow_dispatch**), publishes a GitHub Release with Skript-style notes (intro, changelog, install, notices, thanks) plus auto-generated commit/PR notes, and attaches a single asset:
-  - `ChunkBench-<version>.jar`
-
-Publish a release:
-
-```bash
-git tag -a v1.0.1 -m "Release v1.0.1"
-git push origin v1.0.1
-```
-
-Or run **Actions → Release → Run workflow** and enter `1.0.1`.
-
-## License
-
-**PolyForm Shield 1.0.0** — see [LICENSE](LICENSE).
-
-- You may run ChunkBench on your servers
-- Pull requests / contributions to **this** project are welcome (see [CONTRIBUTING.md](CONTRIBUTING.md))
-- You may **not** provide a competing product, or take the code to build/integrate a substitute into your own application/product
-
-```
-Required Notice: Copyright pozii (ChunkBench)
-Licensor Line of Business: ChunkBench Minecraft server capacity audit tooling
-```
-
-## Disclaimer
-
-Estimates are model-based. Worlds are never scanned. Farms, redstone, and custom plugins can dominate real capacity. Only use on servers you own or have permission to audit.

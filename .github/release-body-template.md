@@ -26,13 +26,10 @@ Reports are saved under `plugins/ChunkBench/reports/` and can be uploaded to [mc
 ## Notices
 
 ### Compatibility
-ChunkBench is a **core** plugin intended to load from **1.8.8 through 26.2**. Prefer Paper/Purpur when available; Spigot and compatible forks are supported. Only audit servers you own or have permission to inspect.
+ChunkBench is a **core** plugin intended to load from **1.8.8 through 26.2**. Prefer Paper/Purpur when available; Spigot and compatible forks are supported.
 
 ### Scoring model
-Scores are **out of 100 for your stated player target**, focusing on chunk-load fitness and overall speed. Minecraft version is modeled as a research-backed **resource cost** (not a vanity bonus). Worlds are never scanned; farms, redstone, and custom plugins can dominate real capacity.
-
-### License
-Released under **[PolyForm Shield 1.0.0](https://github.com/pozii/ChunkBench/blob/main/LICENSE)**. Contributions via pull request are welcome. Building a competing product or integrating this codebase into another application as a substitute is not permitted.
+Scores are **out of 100 for your stated player target**, focusing on chunk-load fitness and overall speed. Minecraft version is modeled as a research-backed **resource cost** (not a vanity bonus).
 
 ### Community
 - Issues: https://github.com/pozii/ChunkBench/issues
