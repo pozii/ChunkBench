@@ -82,12 +82,12 @@ public final class VersionResourceCatalog {
                         "1.19+ feature/deep dark overhead on top of 1.18 gen.");
             }
             if (p.minor == 20) {
-                return new Profile("1.20", 1.50, 3.4, 200, 1.45,
-                        "Modern Paper baseline; ~200MB/player rule-of-thumb era.");
+                return new Profile("1.20", 1.50, 3.2, 160, 1.45,
+                        "Modern Paper baseline; per-player RAM is tiered (overlap), not flat 200MB.");
             }
             if (p.minor >= 21) {
-                return new Profile("1.21+", 1.55, 3.5, 210, 1.50,
-                        "1.21+ denser content; CPU single-thread still critical.");
+                return new Profile("1.21+", 1.55, 3.4, 155, 1.50,
+                        "1.21+ denser content; Paper ~100 players often ~12–16G at VD~10 (tiered model).");
             }
         }
 
@@ -95,9 +95,9 @@ public final class VersionResourceCatalog {
         if (p.major >= 25) {
             double drop = p.minor + p.patch * 0.1;
             double cost = 1.60 + Math.min(0.25, drop * 0.03);
-            return new Profile(p.major + "." + p.minor, cost, 3.6 + drop * 0.05,
-                    215 + drop * 2, 1.55 + Math.min(0.2, drop * 0.02),
-                    "Year.drop releases (e.g. 26.2) need modern Java and carry higher baseline cost.");
+            return new Profile(p.major + "." + p.minor, cost, 3.5 + drop * 0.05,
+                    150 + drop, 1.55 + Math.min(0.2, drop * 0.02),
+                    "Year.drop releases need modern Java; RAM uses tiered per-player costs.");
         }
 
         return new Profile("other", 1.40, 3.0, 180, 1.30, "Unmapped version family — conservative mid cost.");

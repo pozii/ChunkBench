@@ -13,13 +13,12 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Scores how well THIS machine (RAM/CPU/version/plugins/startup) can serve the
- * wizard target player count — focusing on chunk load capacity and overall speed.
- *
- * Overall score is out of 100 for that player target (not a vanity "newer = better").
- * Heavier MC versions raise required resources (research-backed cost factors).
+ * Scores how well THIS machine can serve the wizard target player count.
+ * Uses tiered RAM (overlapping chunks) and a floored version-cost score.
  */
 public final class CapacityEstimator {
+
+    private static final int VERSION_SCORE_FLOOR = 25;
 
     public BenchResult estimate(BenchInputs inputs,
                                 ScanResult scan,
@@ -39,40 +38,34 @@ public final class CapacityEstimator {
         if (pluginCount == 0) {
             pluginFactor = 0.95;
         } else {
-            // Geometric mean already applied via pow; dampen extreme stacks
             pluginFactor = 0.85 + (pluginFactor * 0.15) + Math.min(0.35, pluginCount * 0.008);
         }
 
-        double view = Math.max(4, runtime.viewDistance);
-        double viewFactor = Math.pow(view / 8.0, 1.15);
+        int view = Math.max(2, Math.min(32, inputs.viewDistance));
+        boolean paperLike = scan.hasPaperConfig;
 
         double cpuClassMul = "high".equals(inputs.cpuClass) ? 1.15
                 : "low".equals(inputs.cpuClass) ? 0.80 : 1.0;
         double effectiveCores = inputs.cpuCores * cpuClassMul;
 
-        // Required RAM for target players on this version
-        double requiredRam = (ver.baselineRamGb + (inputs.targetPlayers * ver.ramPerPlayerMb) / 1024.0)
-                * pluginFactor * Math.max(0.85, Math.min(1.6, viewFactor / 1.0));
-        requiredRam *= (0.85 + 0.15 * ver.costFactor);
+        double requiredRam = RamModel.requiredRamGb(ver, inputs.targetPlayers, view, pluginFactor, paperLike);
 
-        // Soft player capacity from RAM / CPU given version cost
-        double ramCap = Math.max(1, (inputs.ramGb / Math.max(0.5, ver.baselineRamGb) - 1.0)
-                * (1024.0 / ver.ramPerPlayerMb) / pluginFactor / viewFactor);
-        double cpuCap = Math.max(1, (effectiveCores / ver.cpuWeight) * (10.0 / Math.max(0.7, ver.costFactor)));
-        // Paper-ish software bonus
-        double softMul = scan.hasPaperConfig ? 1.12 : (scan.hasSpigotConfig ? 1.05 : 1.0);
-        double expected = Math.min(ramCap, cpuCap) * softMul * (0.75 + 0.25 * (jvm.startupScore / 100.0));
-        double low = expected * 0.75;
-        double high = expected * 1.20;
+        double ramCap = RamModel.estimatePlayersForRam(ver, inputs.ramGb, view, pluginFactor, paperLike);
+        // Single-thread sensitive: ~8–14 players per effective core depending on version weight
+        double cpuCap = Math.max(1, (effectiveCores / Math.max(0.7, ver.cpuWeight)) * 11.0);
+        double softMul = paperLike ? 1.12 : (scan.hasSpigotConfig ? 1.05 : 1.0);
+        double expected = Math.min(ramCap, cpuCap) * softMul * (0.78 + 0.22 * (jvm.startupScore / 100.0));
+        double low = Math.max(1, expected * 0.78);
+        double high = Math.max(low + 1, expected * 1.22);
 
         int ramScore = ratioScore(inputs.ramGb, requiredRam);
-        int cpuNeeded = (int) Math.ceil(inputs.targetPlayers / 12.0 * ver.cpuWeight * ver.costFactor);
+        int cpuNeeded = (int) Math.ceil(Math.max(1, inputs.targetPlayers / 14.0) * ver.cpuWeight);
         int cpuScore = ratioScore(effectiveCores, Math.max(1, cpuNeeded));
 
-        // Version cost score: how punishing is this version for the given box?
-        // Lower cost versions score higher for same hardware/players.
-        double versionBurden = ver.costFactor * (requiredRam / Math.max(0.5, inputs.ramGb));
-        int versionCostScore = clamp((int) Math.round(100 - (versionBurden - 0.8) * 55));
+        // Version score: base floor + soft penalty (never wipe capacity to 0)
+        double burden = ver.costFactor * (requiredRam / Math.max(0.75, inputs.ramGb));
+        int versionCostScore = clamp(VERSION_SCORE_FLOOR
+                + (int) Math.round((100 - VERSION_SCORE_FLOOR) * Math.max(0, Math.min(1, 1.35 - 0.35 * burden))));
 
         int pluginScore = clamp((int) Math.round(100 - (pluginFactor - 1.0) * 120 - Math.max(0, pluginCount - 15) * 1.5));
         int startupScore = jvm.startupScore;
@@ -85,29 +78,26 @@ public final class CapacityEstimator {
             }
         }
 
-        // Chunk score: CPU + startup async friendliness + view distance + version gen cost + RAM headroom
-        double chunkRaw = 0.35 * cpuScore
-                + 0.20 * ramScore
-                + 0.15 * startupScore
-                + 0.15 * versionCostScore
-                + 0.15 * (100 - Math.min(60, (view - 6) * 6));
-        if (scan.hasPaperConfig) {
+        double chunkRaw = 0.32 * cpuScore
+                + 0.22 * ramScore
+                + 0.14 * startupScore
+                + 0.14 * versionCostScore
+                + 0.18 * (100 - Math.min(55, Math.max(0, view - 6) * 5));
+        if (paperLike) {
             chunkRaw += 4;
         }
         int chunkScore = clamp((int) Math.round(chunkRaw));
 
-        // Overall speed for THIS target player count
         double loadRatio = inputs.targetPlayers / Math.max(1.0, expected);
-        int targetFit = clamp((int) Math.round(100 - Math.max(0, loadRatio - 0.7) * 90));
+        int targetFit = clamp((int) Math.round(100 - Math.max(0, loadRatio - 0.7) * 85));
 
         double overallRaw = 0.28 * chunkScore
                 + 0.22 * targetFit
-                + 0.15 * ramScore
+                + 0.16 * ramScore
                 + 0.12 * cpuScore
-                + 0.10 * versionCostScore
+                + 0.08 * versionCostScore
                 + 0.08 * pluginScore
-                + 0.05 * startupScore;
-        // Blend a bit of live headroom when available
+                + 0.06 * startupScore;
         if (runtime.tps > 0) {
             overallRaw = overallRaw * 0.9 + headroomScore * 0.1;
         }
@@ -115,39 +105,40 @@ public final class CapacityEstimator {
         int overallScore = overallSpeedScore;
 
         String verdict;
-        if (loadRatio <= 0.85 && overallScore >= 75) {
+        if (loadRatio <= 0.85 && overallScore >= 72) {
             verdict = "PASS";
-        } else if (loadRatio <= 1.15 && overallScore >= 55) {
+        } else if (loadRatio <= 1.20 && overallScore >= 52) {
             verdict = "TIGHT";
         } else {
             verdict = "FAIL";
         }
 
         List<String> recs = new ArrayList<String>();
-        if (inputs.ramGb < requiredRam) {
+        if (inputs.ramGb + 0.15 < requiredRam) {
             recs.add(String.format(Locale.US,
-                    "Raise heap toward ~%.1fG for %d players on %s (cost factor %.2f).",
-                    requiredRam, inputs.targetPlayers, ver.band, ver.costFactor));
+                    "Raise heap toward ~%.1fG for %d players at view-distance %d on %s (tiered model).",
+                    requiredRam, inputs.targetPlayers, view, ver.band));
         }
         if (jvm.aikarPresent < 8) {
             recs.add("Apply Aikar-style G1 flags (or panel equivalent); bare/vanilla launches score poorly on startup.");
         }
-        if (view > 10) {
-            recs.add("Lower view-/simulation-distance to improve chunk throughput for the target player count.");
+        if (view > 10 && inputs.targetPlayers >= 40) {
+            recs.add("For large populations, Paper guides often use view-distance 6–8 (simulation lower); VD "
+                    + view + " raises chunk RAM/CPU pressure.");
         }
         if (pluginFactor > 1.25) {
             recs.add("Plugin set looks heavy — profile with spark; trim entity/NPC/map plugins if chunk lag appears.");
         }
         if (ver.costFactor >= 1.45 && inputs.ramGb < 6 && inputs.targetPlayers >= 20) {
-            recs.add("Modern versions (" + ver.band + ") need more baseline RAM than 1.8–1.12 for the same player count.");
+            recs.add("Modern versions (" + ver.band + ") still need more baseline RAM than 1.8–1.12, but not a linear 200MB×players tax.");
         }
         if (recs.isEmpty()) {
             recs.add("Stack looks balanced for the stated target — still validate under real peak play.");
         }
 
         String summary = String.format(Locale.US,
-                "Chunk %d/100 · Speed %d/100 · Need ~%.1fG for %d on %s",
-                chunkScore, overallSpeedScore, requiredRam, inputs.targetPlayers, mc);
+                "Chunk %d/100 · Speed %d/100 · Need ~%.1fG for %d @ VD %d on %s",
+                chunkScore, overallSpeedScore, requiredRam, inputs.targetPlayers, view, mc);
 
         return new BenchResult(inputs, mc, ver, overallScore, chunkScore, overallSpeedScore,
                 ramScore, cpuScore, versionCostScore, pluginScore, startupScore, headroomScore,
@@ -160,16 +151,16 @@ public final class CapacityEstimator {
             return 100;
         }
         double r = have / need;
-        if (r >= 1.35) {
+        if (r >= 1.25) {
             return 100;
         }
         if (r >= 1.0) {
-            return clamp((int) Math.round(75 + (r - 1.0) * 70));
+            return clamp((int) Math.round(78 + (r - 1.0) * 88));
         }
-        if (r >= 0.7) {
-            return clamp((int) Math.round(45 + (r - 0.7) * 100));
+        if (r >= 0.75) {
+            return clamp((int) Math.round(52 + (r - 0.75) * 104));
         }
-        return clamp((int) Math.round(r * 60));
+        return clamp((int) Math.round(r * 68));
     }
 
     private static int clamp(int v) {

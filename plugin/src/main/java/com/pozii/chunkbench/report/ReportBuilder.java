@@ -25,6 +25,8 @@ public final class ReportBuilder {
         sb.append("--- Target ---\n");
         sb.append("Players: ").append(r.inputs.targetPlayers)
                 .append(" (").append(r.inputs.playersSource).append(")\n");
+        sb.append("View distance: ").append(r.inputs.viewDistance).append(" chunks (")
+                .append(r.inputs.viewDistanceSource).append(")\n");
         sb.append("RAM allocated: ").append(fmt(r.inputs.ramGb)).append("G\n");
         sb.append("CPU: ").append(r.inputs.cpuCores).append(" cores (")
                 .append(r.inputs.cpuClass).append(")\n");
@@ -33,12 +35,13 @@ public final class ReportBuilder {
         sb.append("--- Detected ---\n");
         sb.append("Minecraft: ").append(r.mcVersion).append(" [band ").append(r.versionProfile.band).append("]\n");
         sb.append("Version cost factor: ").append(fmt(r.versionProfile.costFactor))
-                .append(" | baseline ").append(fmt(r.versionProfile.baselineRamGb)).append("G | ~")
-                .append((int) r.versionProfile.ramPerPlayerMb).append("MB/player\n");
+                .append(" | baseline ").append(fmt(r.versionProfile.baselineRamGb))
+                .append("G | tiered base ~").append((int) r.versionProfile.ramPerPlayerMb)
+                .append("MB/player (diminishing)\n");
         sb.append("Notes: ").append(r.versionProfile.notes).append('\n');
         sb.append("Server: ").append(r.runtime.serverVersion).append('\n');
         sb.append("Bukkit: ").append(r.runtime.bukkitVersion).append('\n');
-        sb.append("View distance: ").append(r.runtime.viewDistance).append('\n');
+        sb.append("Runtime view-distance API: ").append(r.runtime.viewDistance).append('\n');
         sb.append("Online now: ").append(r.runtime.onlinePlayers).append('\n');
         if (r.runtime.tps > 0) {
             sb.append("TPS: ").append(fmt(r.runtime.tps));

@@ -22,20 +22,27 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.util.Map;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class BenchWizard implements Listener {
 
+    public static final int MIN_VIEW_DISTANCE = 2;
+    public static final int MAX_VIEW_DISTANCE = 32;
+
     private enum Step {
-        PLAYERS, RAM, CPU
+        PLAYERS, VIEW, RAM, CPU
     }
 
     private static final class Session {
         Step step = Step.PLAYERS;
         int targetPlayers;
         String playersSource;
+        int viewDistance;
+        String viewDistanceSource;
         double ramGb;
         int cpuCores;
         String cpuClass = "mid";
@@ -62,7 +69,7 @@ public final class BenchWizard implements Listener {
         sessions.put(player.getUniqueId(), new Session());
         HardwareDetector.Snapshot hw = HardwareDetector.detect();
         msg(player, "&7ChunkBench by &bpozii&7 — auditing &fthis server only&7.");
-        msg(player, "&eStep 1/3 — Target players");
+        msg(player, "&eStep 1/4 — Target players");
         msg(player, "&7Type a &fnumber&7, or &fconfirm &7to use &fmax-players &7from server.properties.");
         msg(player, "&8(Type &7cancel &8to abort.)");
         if (hw.detectedXmxGb > 0) {
@@ -100,6 +107,8 @@ public final class BenchWizard implements Listener {
 
         if (session.step == Step.PLAYERS) {
             handlePlayers(player, session, raw);
+        } else if (session.step == Step.VIEW) {
+            handleView(player, session, raw);
         } else if (session.step == Step.RAM) {
             handleRam(player, session, raw);
         } else if (session.step == Step.CPU) {
@@ -109,7 +118,7 @@ public final class BenchWizard implements Listener {
 
     private void handlePlayers(Player player, Session session, String raw) {
         if (raw.equalsIgnoreCase("confirm") || raw.isEmpty()) {
-            Integer max = readMaxPlayers();
+            Integer max = readIntProperty("max-players", plugin.getServer().getMaxPlayers());
             if (max == null || max <= 0) {
                 msg(player, "&cCould not read max-players. Type a number.");
                 return;
@@ -130,10 +139,69 @@ public final class BenchWizard implements Listener {
                 return;
             }
         }
+        session.step = Step.VIEW;
+        msg(player, "&aTarget players: &f" + session.targetPlayers + " &7(" + session.playersSource + ")");
+        promptViewDistance(player);
+    }
+
+    private void promptViewDistance(Player player) {
+        Integer propsVd = readIntProperty("view-distance", -1);
+        msg(player, "&eStep 2/4 — View distance (chunks)");
+        msg(player, "&7Valid range: &f" + MIN_VIEW_DISTANCE + "&7–&f" + MAX_VIEW_DISTANCE + "&7 chunks.");
+        if (propsVd != null && propsVd > 0) {
+            if (isValidViewDistance(propsVd)) {
+                msg(player, "&7server.properties view-distance=&f" + propsVd
+                        + "&7. Type a value, or &fconfirm &7to use it.");
+            } else {
+                msg(player, "&cserver.properties view-distance=&f" + propsVd
+                        + " &cis not supported (max &f" + MAX_VIEW_DISTANCE + "&c).");
+                msg(player, "&7Please &ftype a valid chunk view-distance&7 ("
+                        + MIN_VIEW_DISTANCE + "-" + MAX_VIEW_DISTANCE + "), or fix server.properties.");
+            }
+        } else {
+            msg(player, "&7Could not read view-distance. Type a valid value ("
+                    + MIN_VIEW_DISTANCE + "-" + MAX_VIEW_DISTANCE + ").");
+        }
+        msg(player, "&8Enter a valid chunk count or type &7confirm&8 when properties are valid.");
+    }
+
+    private void handleView(Player player, Session session, String raw) {
+        Integer propsVd = readIntProperty("view-distance", -1);
+        if (raw.equalsIgnoreCase("confirm") || raw.isEmpty()) {
+            if (propsVd == null || propsVd <= 0) {
+                msg(player, "&cNothing to confirm. Type a valid view-distance ("
+                        + MIN_VIEW_DISTANCE + "-" + MAX_VIEW_DISTANCE + ").");
+                return;
+            }
+            if (!isValidViewDistance(propsVd)) {
+                msg(player, "&cThat view-distance (&f" + propsVd
+                        + "&c) is not supported. Type a value between &f"
+                        + MIN_VIEW_DISTANCE + " &cand &f" + MAX_VIEW_DISTANCE + "&c.");
+                return;
+            }
+            session.viewDistance = propsVd;
+            session.viewDistanceSource = "server.properties view-distance=" + propsVd;
+        } else {
+            try {
+                int n = Integer.parseInt(raw);
+                if (!isValidViewDistance(n)) {
+                    msg(player, "&cInvalid chunk view-distance. Enter &f"
+                            + MIN_VIEW_DISTANCE + "&c–&f" + MAX_VIEW_DISTANCE
+                            + "&c, or &fconfirm &cif properties are valid.");
+                    return;
+                }
+                session.viewDistance = n;
+                session.viewDistanceSource = "chat input";
+            } catch (NumberFormatException ex) {
+                msg(player, "&cEnter a valid chunk view-distance ("
+                        + MIN_VIEW_DISTANCE + "-" + MAX_VIEW_DISTANCE + ") or &fconfirm&c.");
+                return;
+            }
+        }
         session.step = Step.RAM;
         HardwareDetector.Snapshot hw = HardwareDetector.detect();
-        msg(player, "&aTarget players: &f" + session.targetPlayers + " &7(" + session.playersSource + ")");
-        msg(player, "&eStep 2/3 — RAM allocated to this server (GB)");
+        msg(player, "&aView distance: &f" + session.viewDistance + " &7(" + session.viewDistanceSource + ")");
+        msg(player, "&eStep 3/4 — RAM allocated to this server (GB)");
         String host = hw.hostRamGb > 0 ? formatGb(hw.hostRamGb) + "G" : "unknown";
         String xmx = hw.detectedXmxGb > 0 ? formatGb(hw.detectedXmxGb) + "G" : "unknown";
         msg(player, "&7Detected JVM heap: &f" + xmx + " &7| Host RAM: &f" + host);
@@ -163,7 +231,7 @@ public final class BenchWizard implements Listener {
         }
         session.step = Step.CPU;
         msg(player, "&aRAM: &f" + formatGb(session.ramGb) + "G");
-        msg(player, "&eStep 3/3 — CPU");
+        msg(player, "&eStep 4/4 — CPU");
         msg(player, "&7Detected cores: &f" + hw.cpuCores
                 + (hw.cpuModel.isEmpty() ? "" : " &7(" + hw.cpuModel + ")"));
         msg(player, "&7Type core count, or &fconfirm&7. Optional class: &flow &7/ &fmid &7/ &fhigh");
@@ -202,6 +270,8 @@ public final class BenchWizard implements Listener {
         final BenchInputs inputs = new BenchInputs(
                 session.targetPlayers,
                 session.playersSource,
+                session.viewDistance,
+                session.viewDistanceSource,
                 session.ramGb,
                 session.cpuCores,
                 session.cpuClass
@@ -221,18 +291,14 @@ public final class BenchWizard implements Listener {
     }
 
     private void runBench(Player player, BenchInputs inputs) throws Exception {
-        File root = plugin.getServer().getWorldContainer().getCanonicalFile().getParentFile();
-        if (root == null) {
-            root = new File(".").getCanonicalFile();
-        }
-        // worldContainer is often the root itself on Spigot
         File serverRoot = plugin.getServer().getWorldContainer().getCanonicalFile();
-        if (new File(serverRoot, "server.properties").exists() || new File(serverRoot, "plugins").exists()) {
-            root = serverRoot;
-        } else if (serverRoot.getParentFile() != null
-                && (new File(serverRoot.getParentFile(), "server.properties").exists()
-                || new File(serverRoot.getParentFile(), "plugins").exists())) {
-            root = serverRoot.getParentFile();
+        File root = serverRoot;
+        if (!(new File(serverRoot, "server.properties").exists() || new File(serverRoot, "plugins").exists())) {
+            if (serverRoot.getParentFile() != null
+                    && (new File(serverRoot.getParentFile(), "server.properties").exists()
+                    || new File(serverRoot.getParentFile(), "plugins").exists())) {
+                root = serverRoot.getParentFile();
+            }
         }
 
         ScanResult scan = new ServerRootScanner(plugin).scan(root);
@@ -268,7 +334,8 @@ public final class BenchWizard implements Listener {
                     return;
                 }
                 msg(player, "&aAudit complete.");
-                msg(player, "&7Score for &f" + inputs.targetPlayers + " &7players: &b" + score + "/100");
+                msg(player, "&7Score for &f" + inputs.targetPlayers + " &7players @ VD &f"
+                        + inputs.viewDistance + "&7: &b" + score + "/100");
                 msg(player, "&7Verdict: &f" + verdict);
                 msg(player, "&7" + summary);
                 msg(player, "&7Saved: &f" + reportPath);
@@ -281,30 +348,43 @@ public final class BenchWizard implements Listener {
         });
     }
 
-    private Integer readMaxPlayers() {
+    private static boolean isValidViewDistance(int n) {
+        return n >= MIN_VIEW_DISTANCE && n <= MAX_VIEW_DISTANCE;
+    }
+
+    private Integer readIntProperty(String key, int fallback) {
         try {
-            File props = new File(plugin.getServer().getWorldContainer(), "server.properties");
-            if (!props.exists()) {
-                props = new File("server.properties");
+            File props = locateServerProperties();
+            if (props == null || !props.exists()) {
+                return fallback > 0 ? Integer.valueOf(fallback) : null;
             }
-            if (!props.exists()) {
-                return plugin.getServer().getMaxPlayers();
-            }
-            java.util.Properties p = new java.util.Properties();
-            java.io.FileInputStream in = new java.io.FileInputStream(props);
+            Properties p = new Properties();
+            FileInputStream in = new FileInputStream(props);
             try {
                 p.load(in);
             } finally {
                 in.close();
             }
-            String v = p.getProperty("max-players");
-            if (v == null) {
-                return plugin.getServer().getMaxPlayers();
+            String v = p.getProperty(key);
+            if (v == null || v.trim().isEmpty()) {
+                return fallback > 0 ? Integer.valueOf(fallback) : null;
             }
-            return Integer.parseInt(v.trim());
+            return Integer.valueOf(Integer.parseInt(v.trim()));
         } catch (Exception e) {
-            return plugin.getServer().getMaxPlayers();
+            return fallback > 0 ? Integer.valueOf(fallback) : null;
         }
+    }
+
+    private File locateServerProperties() {
+        File a = new File(plugin.getServer().getWorldContainer(), "server.properties");
+        if (a.exists()) {
+            return a;
+        }
+        File b = new File("server.properties");
+        if (b.exists()) {
+            return b;
+        }
+        return a;
     }
 
     private static boolean isClass(String s) {

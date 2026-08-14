@@ -8,6 +8,7 @@
 2. Run `/chunkbench` in-game (OP / `chunkbench.run`)
 3. Wizard asks for:
    - **Target players** — type a number, or `confirm` to use `max-players` from `server.properties`
+   - **View distance (chunks)** — type `2–32`, or `confirm` to use `view-distance` (rejects unsupported values such as 100)
    - **RAM (GB)** — confirm detected `-Xmx` or type your allocation
    - **CPU** — confirm detected cores (optional `low` / `mid` / `high`)
 4. Plugin scans the **server root** (world folders excluded), startup scripts (`.bat`/`.sh`/…), JVM flags (Aikar/G1), plugins, and live TPS when available
@@ -15,9 +16,11 @@
 
 ## Scoring (out of 100 for YOUR player target)
 
-The score answers: *for N players, with this RAM/CPU/version/plugins/startup, how good are chunk load + overall speed?*
+The score answers: *for N players, with this RAM/CPU/version/view-distance/plugins/startup, how good are chunk load + overall speed?*
 
-Minecraft **version is not a flat vanity bonus**. ChunkBench uses a research-backed **resource cost** table (e.g. DFU RAM jump after 1.13 from Mojira MC-190258, higher gen cost on 1.18+, modern 1.21/26.x baselines). Heavier versions need more RAM/CPU for the same player count.
+Minecraft **version is not a flat vanity bonus**. ChunkBench uses a research-backed **resource cost** table with a **score floor** (modern versions are penalized, never zeroed to wipe capacity).
+
+**RAM is tiered**, not linear ~200MB×players: as population grows, chunk regions overlap, so marginal RAM per extra player drops — aligning closer to Paper guidance (~12–16G for ~100 players at view-distance ~10 on 1.21+), not 30G+ linear estimates.
 
 ## Build
 
@@ -25,7 +28,7 @@ Minecraft **version is not a flat vanity bonus**. ChunkBench uses a research-bac
 gradlew jar
 ```
 
-Output: `build/libs/ChunkBench-1.0.0.jar`
+Output: `build/libs/ChunkBench-1.1.0.jar`
 
 Requires JDK 8+ to build (bytecode targets Java 8 for wide server compatibility).
 
