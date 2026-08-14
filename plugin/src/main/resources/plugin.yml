@@ -1,6 +1,8 @@
 name: ChunkBench
 main: com.pozii.chunkbench.ChunkBenchPlugin
 version: ${version}
+author: pozii
+authors: [pozii]
 description: Capacity audit and score for your Minecraft server (1.8.8 - 26.2).
 website: https://github.com/pozii/ChunkBench
 commands:
