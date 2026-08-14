@@ -36,6 +36,7 @@ jobs:
           RAW="${RAW#v}"
           echo "version=${RAW}" >> "$GITHUB_OUTPUT"
           echo "tag=v${RAW}" >> "$GITHUB_OUTPUT"
+          echo "jar=ChunkBench-${RAW}.jar" >> "$GITHUB_OUTPUT"
           echo "Resolved version=${RAW} tag=v${RAW}"
 
       - name: Set up JDK 21
@@ -53,39 +54,22 @@ jobs:
       - name: Build release jar
         run: ./gradlew jar --no-daemon -PrelVersion=${{ steps.ver.outputs.version }}
 
-      - name: Prepare release assets
+      - name: Prepare release asset
         shell: bash
         run: |
           mkdir -p dist
-          JAR=$(ls build/libs/chunkbench-*.jar | head -n1)
-          cp "$JAR" "dist/chunkbench-${{ steps.ver.outputs.version }}.jar"
-          cp "$JAR" dist/chunkbench.jar
+          JAR=$(ls build/libs/ChunkBench-*.jar | head -n1)
+          cp "$JAR" "dist/${{ steps.ver.outputs.jar }}"
           ls -la dist/
 
-      - name: Write release preamble
+      - name: Build release notes
         shell: bash
         run: |
-          cat > release-preamble.md <<'EOF'
-          ## ChunkBench VERSION_PLACEHOLDER
-
-          Capacity audit plugin for Minecraft servers (**1.8.8 – 26.2**) by **pozii**.
-
-          ### Install
-          1. Download `chunkbench.jar` (or the versioned jar below)
-          2. Place it in your server `plugins/` folder
-          3. Restart the server
-          4. Run `/chunkbench` in-game (permission `chunkbench.run`, default OP)
-
-          ### Assets
-          - `chunkbench.jar` — drop-in plugin jar
-          - `chunkbench-VERSION_PLACEHOLDER.jar` — versioned copy of the same build
-
-          Licensed under **PolyForm Shield 1.0.0**.
-
-          ---
-          EOF
-          sed -i 's/^          //' release-preamble.md
-          sed -i "s/VERSION_PLACEHOLDER/${{ steps.ver.outputs.version }}/g" release-preamble.md
+          sed \
+            -e "s/__VERSION__/${{ steps.ver.outputs.version }}/g" \
+            -e "s/__JAR__/${{ steps.ver.outputs.jar }}/g" \
+            .github/release-body-template.md > release-body.md
+          cat release-body.md
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -93,12 +77,12 @@ jobs:
           tag_name: ${{ steps.ver.outputs.tag }}
           target_commitish: ${{ github.sha }}
           name: ChunkBench ${{ steps.ver.outputs.version }}
-          body_path: release-preamble.md
+          body_path: release-body.md
           generate_release_notes: true
-          files: |
-            dist/chunkbench.jar
-            dist/chunkbench-${{ steps.ver.outputs.version }}.jar
+          files: dist/${{ steps.ver.outputs.jar }}
+          fail_on_unmatched_files: true
           draft: false
           prerelease: false
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -32,7 +32,7 @@ dependencies {
 }
 
 tasks.jar {
-    archiveBaseName.set("chunkbench")
+    archiveBaseName.set("ChunkBench")
     archiveVersion.set(project.version.toString())
 }
 

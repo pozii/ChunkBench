@@ -4,7 +4,7 @@
 
 ## What it does
 
-1. Install `chunkbench.jar` into `plugins/`
+1. Install `ChunkBench-<version>.jar` into `plugins/`
 2. Run `/chunkbench` in-game (OP / `chunkbench.run`)
 3. Wizard asks for:
    - **Target players** — type a number, or `confirm` to use `max-players` from `server.properties`
@@ -25,7 +25,7 @@ Minecraft **version is not a flat vanity bonus**. ChunkBench uses a research-bac
 gradlew jar
 ```
 
-Output: `build/libs/chunkbench-1.0.0.jar`
+Output: `build/libs/ChunkBench-1.0.0.jar`
 
 Requires JDK 8+ to build (bytecode targets Java 8 for wide server compatibility).
 
@@ -33,10 +33,9 @@ Requires JDK 8+ to build (bytecode targets Java 8 for wide server compatibility)
 
 GitHub Actions:
 
-- **CI** — builds the jar on every push/PR to `main` and uploads a build **artifact**
-- **Release** — on tag `v*` (or manual **workflow_dispatch**), builds the jar, creates a GitHub Release with install notes + **auto-generated release notes** from commits, and attaches:
-  - `chunkbench.jar`
-  - `chunkbench-<version>.jar`
+- **CI** — builds on every push/PR to `main` and uploads a build **artifact**
+- **Release** — on tag `v*` (or manual **workflow_dispatch**), publishes a GitHub Release with Skript-style notes (intro, changelog, install, notices, thanks) plus auto-generated commit/PR notes, and attaches a single asset:
+  - `ChunkBench-<version>.jar`
 
 Publish a release:
 
