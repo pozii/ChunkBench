@@ -1,0 +1,17 @@
+name: ChunkBench
+main: com.pozii.chunkbench.ChunkBenchPlugin
+version: ${version}
+author: pozii
+authors: [pozii]
+description: Capacity audit and score for your Minecraft server (1.8.8 - 26.2). Built by pozii.
+website: https://github.com/pozii/chunkbench
+commands:
+  chunkbench:
+    description: Run a ChunkBench capacity audit for this server.
+    usage: /chunkbench [cancel]
+    permission: chunkbench.run
+    aliases: [cb, cbench]
+permissions:
+  chunkbench.run:
+    description: Allows running /chunkbench
+    default: op

@@ -1,0 +1,9 @@
+.gradle/
+build/
+out/
+*.iml
+.idea/
+.vscode/
+plugins/ChunkBench/reports/
+*.log
+.DS_Store
