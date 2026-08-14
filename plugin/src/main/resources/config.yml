@@ -1,28 +1,3 @@
-# ChunkBench by pozii
-mclogs:
-  enabled: true
-  source: ChunkBench
-  url: https://api.mclo.gs/1/log
-
-cooldown-seconds: 60
-
-scan:
-  max-depth: 6
-  max-files: 2500
-  exclude-dirs:
-    - world
-    - world_nether
-    - world_the_end
-    - cache
-    - libraries
-    - versions
-    - .git
-  world-markers:
-    - level.dat
-    - region
-    - DIM-1
-    - DIM1
-    - dimensions
-
-messages:
-  prefix: "&8[&bChunkBench&8]&r "
+# Available languages live in plugins/ChunkBench/lang/
+# Add tr_TR.json (etc.) and set language below, then /chunkbench reload
+language: en_US

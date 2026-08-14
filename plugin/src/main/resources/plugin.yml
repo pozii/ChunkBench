@@ -8,10 +8,13 @@ website: https://github.com/pozii/chunkbench
 commands:
   chunkbench:
     description: Run a ChunkBench capacity audit for this server.
-    usage: /chunkbench [cancel]
+    usage: /chunkbench [cancel|reload]
     permission: chunkbench.run
     aliases: [cb, cbench]
 permissions:
   chunkbench.run:
     description: Allows running /chunkbench
+    default: op
+  chunkbench.reload:
+    description: Allows /chunkbench reload
     default: op

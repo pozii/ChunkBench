@@ -1,6 +1,7 @@
 package com.pozii.chunkbench.mclogs;
 
 import com.pozii.chunkbench.ChunkBenchPlugin;
+import com.pozii.chunkbench.Defaults;
 import com.pozii.chunkbench.estimate.BenchResult;
 
 import java.io.BufferedReader;
@@ -21,8 +22,8 @@ public final class McLogsClient {
     public String upload(String content, BenchResult result) {
         try {
             // Prefer JSON API with source + metadata; fall back to form body if needed.
-            String endpoint = plugin.getConfig().getString("mclogs.url", "https://api.mclo.gs/1/log");
-            String source = plugin.getConfig().getString("mclogs.source", "ChunkBench");
+            String endpoint = Defaults.MCLOGS_URL;
+            String source = Defaults.MCLOGS_SOURCE;
 
             String payload = buildJson(content, source, result);
             String response = post(endpoint, payload, "application/json; charset=utf-8");

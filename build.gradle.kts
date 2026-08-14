@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "com.pozii"
-version = (findProperty("relVersion") as String?)?.removePrefix("v")?.takeIf { it.isNotBlank() } ?: "1.1.3"
+version = (findProperty("relVersion") as String?)?.removePrefix("v")?.takeIf { it.isNotBlank() } ?: "1.2.0"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8

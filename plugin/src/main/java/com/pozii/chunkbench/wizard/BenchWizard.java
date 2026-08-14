@@ -1,6 +1,7 @@
 package com.pozii.chunkbench.wizard;
 
 import com.pozii.chunkbench.ChunkBenchPlugin;
+import com.pozii.chunkbench.Defaults;
 import com.pozii.chunkbench.estimate.BenchInputs;
 import com.pozii.chunkbench.estimate.BenchResult;
 import com.pozii.chunkbench.estimate.CapacityEstimator;
@@ -13,7 +14,6 @@ import com.pozii.chunkbench.scan.ScanResult;
 import com.pozii.chunkbench.scan.ServerRootScanner;
 import com.pozii.chunkbench.scan.StartupScriptParser;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -23,7 +23,6 @@ import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,8 +48,8 @@ public final class BenchWizard implements Listener {
     }
 
     private final ChunkBenchPlugin plugin;
-    private final Map<UUID, Session> sessions = new ConcurrentHashMap<UUID, Session>();
-    private final Map<UUID, Long> lastRun = new ConcurrentHashMap<UUID, Long>();
+    private final ConcurrentHashMap<UUID, Session> sessions = new ConcurrentHashMap<UUID, Session>();
+    private final ConcurrentHashMap<UUID, Long> lastRun = new ConcurrentHashMap<UUID, Long>();
 
     public BenchWizard(ChunkBenchPlugin plugin) {
         this.plugin = plugin;
@@ -68,12 +67,12 @@ public final class BenchWizard implements Listener {
     public void start(Player player) {
         sessions.put(player.getUniqueId(), new Session());
         HardwareDetector.Snapshot hw = HardwareDetector.detect();
-        msg(player, "&7ChunkBench by &bpozii&7 — auditing &fthis server only&7.");
-        msg(player, "&eStep 1/4 — Target players");
-        msg(player, "&7Type a &fnumber&7, or &fconfirm &7to use &fmax-players &7from server.properties.");
-        msg(player, "&8(Type &7cancel &8to abort.)");
+        msgKey(player, "wizard.intro");
+        msgKey(player, "wizard.step.players");
+        msgKey(player, "wizard.step.players.hint");
+        msgKey(player, "wizard.cancel-hint");
         if (hw.detectedXmxGb > 0) {
-            msg(player, "&8Detected JVM heap: &7" + formatGb(hw.detectedXmxGb) + "G");
+            msgFmt(player, "wizard.detected-xmx", formatGb(hw.detectedXmxGb));
         }
     }
 
@@ -101,7 +100,7 @@ public final class BenchWizard implements Listener {
         String raw = event.getMessage() == null ? "" : event.getMessage().trim();
         if (raw.equalsIgnoreCase("cancel")) {
             sessions.remove(player.getUniqueId());
-            msg(player, "&eBench cancelled.");
+            msgKey(player, "error.cancelled");
             return;
         }
 
@@ -120,7 +119,7 @@ public final class BenchWizard implements Listener {
         if (raw.equalsIgnoreCase("confirm") || raw.isEmpty()) {
             Integer max = readIntProperty("max-players", plugin.getServer().getMaxPlayers());
             if (max == null || max <= 0) {
-                msg(player, "&cCould not read max-players. Type a number.");
+                msgKey(player, "wizard.players.no-props");
                 return;
             }
             session.targetPlayers = max;
@@ -129,54 +128,53 @@ public final class BenchWizard implements Listener {
             try {
                 int n = Integer.parseInt(raw);
                 if (n < 1 || n > 10000) {
-                    msg(player, "&cEnter a player count between 1 and 10000.");
+                    msgKey(player, "wizard.players.bad-range");
                     return;
                 }
                 session.targetPlayers = n;
                 session.playersSource = "chat input";
             } catch (NumberFormatException ex) {
-                msg(player, "&cInvalid number. Type a number or &fconfirm&c.");
+                msgKey(player, "wizard.players.bad-number");
                 return;
             }
         }
         session.step = Step.VIEW;
-        msg(player, "&aTarget players: &f" + session.targetPlayers + " &7(" + session.playersSource + ")");
+        msgFmt(player, "wizard.players.ok", Integer.valueOf(session.targetPlayers), session.playersSource);
         promptViewDistance(player);
     }
 
     private void promptViewDistance(Player player) {
         Integer propsVd = readIntProperty("view-distance", -1);
-        msg(player, "&eStep 2/4 — View distance (chunks)");
-        msg(player, "&7Valid range: &f" + MIN_VIEW_DISTANCE + "&7–&f" + MAX_VIEW_DISTANCE + "&7 chunks.");
+        msgKey(player, "wizard.step.view");
+        msgFmt(player, "wizard.view.range", Integer.valueOf(MIN_VIEW_DISTANCE), Integer.valueOf(MAX_VIEW_DISTANCE));
         if (propsVd != null && propsVd > 0) {
             if (isValidViewDistance(propsVd)) {
-                msg(player, "&7server.properties view-distance=&f" + propsVd
-                        + "&7. Type a value, or &fconfirm &7to use it.");
+                msgFmt(player, "wizard.view.props-ok", Integer.valueOf(propsVd));
             } else {
-                msg(player, "&cserver.properties view-distance=&f" + propsVd
-                        + " &cis not supported (max &f" + MAX_VIEW_DISTANCE + "&c).");
-                msg(player, "&7Please &ftype a valid chunk view-distance&7 ("
-                        + MIN_VIEW_DISTANCE + "-" + MAX_VIEW_DISTANCE + "), or fix server.properties.");
+                msgFmt(player, "wizard.view.props-bad", Integer.valueOf(propsVd), Integer.valueOf(MAX_VIEW_DISTANCE));
+                msgFmt(player, "wizard.view.props-bad-hint",
+                        Integer.valueOf(MIN_VIEW_DISTANCE), Integer.valueOf(MAX_VIEW_DISTANCE));
             }
         } else {
-            msg(player, "&7Could not read view-distance. Type a valid value ("
-                    + MIN_VIEW_DISTANCE + "-" + MAX_VIEW_DISTANCE + ").");
+            msgFmt(player, "wizard.view.no-props",
+                    Integer.valueOf(MIN_VIEW_DISTANCE), Integer.valueOf(MAX_VIEW_DISTANCE));
         }
-        msg(player, "&8Enter a valid chunk count or type &7confirm&8 when properties are valid.");
+        msgKey(player, "wizard.view.hint");
     }
 
     private void handleView(Player player, Session session, String raw) {
         Integer propsVd = readIntProperty("view-distance", -1);
         if (raw.equalsIgnoreCase("confirm") || raw.isEmpty()) {
             if (propsVd == null || propsVd <= 0) {
-                msg(player, "&cNothing to confirm. Type a valid view-distance ("
-                        + MIN_VIEW_DISTANCE + "-" + MAX_VIEW_DISTANCE + ").");
+                msgFmt(player, "wizard.view.nothing",
+                        Integer.valueOf(MIN_VIEW_DISTANCE), Integer.valueOf(MAX_VIEW_DISTANCE));
                 return;
             }
             if (!isValidViewDistance(propsVd)) {
-                msg(player, "&cThat view-distance (&f" + propsVd
-                        + "&c) is not supported. Type a value between &f"
-                        + MIN_VIEW_DISTANCE + " &cand &f" + MAX_VIEW_DISTANCE + "&c.");
+                msgFmt(player, "wizard.view.unsupported",
+                        Integer.valueOf(propsVd),
+                        Integer.valueOf(MIN_VIEW_DISTANCE),
+                        Integer.valueOf(MAX_VIEW_DISTANCE));
                 return;
             }
             session.viewDistance = propsVd;
@@ -185,34 +183,33 @@ public final class BenchWizard implements Listener {
             try {
                 int n = Integer.parseInt(raw);
                 if (!isValidViewDistance(n)) {
-                    msg(player, "&cInvalid chunk view-distance. Enter &f"
-                            + MIN_VIEW_DISTANCE + "&c–&f" + MAX_VIEW_DISTANCE
-                            + "&c, or &fconfirm &cif properties are valid.");
+                    msgFmt(player, "wizard.view.invalid",
+                            Integer.valueOf(MIN_VIEW_DISTANCE), Integer.valueOf(MAX_VIEW_DISTANCE));
                     return;
                 }
                 session.viewDistance = n;
                 session.viewDistanceSource = "chat input";
             } catch (NumberFormatException ex) {
-                msg(player, "&cEnter a valid chunk view-distance ("
-                        + MIN_VIEW_DISTANCE + "-" + MAX_VIEW_DISTANCE + ") or &fconfirm&c.");
+                msgFmt(player, "wizard.view.invalid-or-confirm",
+                        Integer.valueOf(MIN_VIEW_DISTANCE), Integer.valueOf(MAX_VIEW_DISTANCE));
                 return;
             }
         }
         session.step = Step.RAM;
         HardwareDetector.Snapshot hw = HardwareDetector.detect();
-        msg(player, "&aView distance: &f" + session.viewDistance + " &7(" + session.viewDistanceSource + ")");
-        msg(player, "&eStep 3/4 — RAM allocated to this server (GB)");
+        msgFmt(player, "wizard.view.ok", Integer.valueOf(session.viewDistance), session.viewDistanceSource);
+        msgKey(player, "wizard.step.ram");
         String host = hw.hostRamGb > 0 ? formatGb(hw.hostRamGb) + "G" : "unknown";
         String xmx = hw.detectedXmxGb > 0 ? formatGb(hw.detectedXmxGb) + "G" : "unknown";
-        msg(player, "&7Detected JVM heap: &f" + xmx + " &7| Host RAM: &f" + host);
-        msg(player, "&7Type GB (e.g. &f8&7) or &fconfirm &7to use detected Xmx.");
+        msgFmt(player, "wizard.ram.detected", xmx, host);
+        msgKey(player, "wizard.ram.hint");
     }
 
     private void handleRam(Player player, Session session, String raw) {
         HardwareDetector.Snapshot hw = HardwareDetector.detect();
         if (raw.equalsIgnoreCase("confirm") || raw.isEmpty()) {
             if (hw.detectedXmxGb <= 0) {
-                msg(player, "&cNo Xmx detected. Type RAM in GB (e.g. 8).");
+                msgKey(player, "wizard.ram.no-xmx");
                 return;
             }
             session.ramGb = hw.detectedXmxGb;
@@ -220,22 +217,22 @@ public final class BenchWizard implements Listener {
             try {
                 double gb = Double.parseDouble(raw.replace("G", "").replace("g", "").trim());
                 if (gb < 0.5 || gb > 1024) {
-                    msg(player, "&cEnter RAM between 0.5 and 1024 GB.");
+                    msgKey(player, "wizard.ram.bad-range");
                     return;
                 }
                 session.ramGb = gb;
             } catch (NumberFormatException ex) {
-                msg(player, "&cInvalid RAM. Type a number or &fconfirm&c.");
+                msgKey(player, "wizard.ram.bad-number");
                 return;
             }
         }
         session.step = Step.CPU;
-        msg(player, "&aRAM: &f" + formatGb(session.ramGb) + "G");
-        msg(player, "&eStep 4/4 — CPU");
-        msg(player, "&7Detected cores: &f" + hw.cpuCores
-                + (hw.cpuModel.isEmpty() ? "" : " &7(" + hw.cpuModel + ")"));
-        msg(player, "&7Type core count, or &fconfirm&7. Optional class: &flow &7/ &fmid &7/ &fhigh");
-        msg(player, "&8Examples: &7confirm &8| &78 &8| &78 high");
+        msgFmt(player, "wizard.ram.ok", formatGb(session.ramGb));
+        msgKey(player, "wizard.step.cpu");
+        String model = hw.cpuModel.isEmpty() ? "" : " &7(" + hw.cpuModel + ")";
+        msgFmt(player, "wizard.cpu.detected", Integer.valueOf(hw.cpuCores), model);
+        msgKey(player, "wizard.cpu.hint");
+        msgKey(player, "wizard.cpu.examples");
     }
 
     private void handleCpu(final Player player, final Session session, String raw) {
@@ -250,7 +247,7 @@ public final class BenchWizard implements Listener {
             } else {
                 session.cpuCores = Integer.parseInt(parts[0]);
                 if (session.cpuCores < 1 || session.cpuCores > 512) {
-                    msg(player, "&cEnter cores between 1 and 512.");
+                    msgKey(player, "wizard.cpu.bad-range");
                     return;
                 }
                 if (parts.length > 1 && isClass(parts[1])) {
@@ -258,13 +255,13 @@ public final class BenchWizard implements Listener {
                 }
             }
         } catch (NumberFormatException ex) {
-            msg(player, "&cInvalid CPU input. Try &fconfirm&c, &f8&c, or &f8 high&c.");
+            msgKey(player, "wizard.cpu.bad-input");
             return;
         }
 
         sessions.remove(player.getUniqueId());
         lastRun.put(player.getUniqueId(), System.currentTimeMillis());
-        msg(player, "&aCPU: &f" + session.cpuCores + " cores &7(" + session.cpuClass + ")");
+        msgFmt(player, "wizard.cpu.ok", Integer.valueOf(session.cpuCores), session.cpuClass);
 
         final BenchInputs inputs = new BenchInputs(
                 session.targetPlayers,
@@ -283,7 +280,7 @@ public final class BenchWizard implements Listener {
                     runBench(player, inputs);
                 } catch (Throwable t) {
                     plugin.getLogger().warning("Bench failed: " + t.getMessage());
-                    msg(player, "&cBench failed: &f" + String.valueOf(t.getMessage()));
+                    msgFmt(player, "error.bench-failed", String.valueOf(t.getMessage()));
                 }
             }
         });
@@ -316,7 +313,7 @@ public final class BenchWizard implements Listener {
         java.nio.file.Files.write(reportFile.toPath(), report.getBytes("UTF-8"));
 
         String url = null;
-        if (plugin.getConfig().getBoolean("mclogs.enabled", true)) {
+        if (Defaults.MCLOGS_ENABLED) {
             url = new McLogsClient(plugin).upload(report, result);
         }
 
@@ -332,16 +329,18 @@ public final class BenchWizard implements Listener {
                 if (!player.isOnline()) {
                     return;
                 }
-                msg(player, "&aAudit complete.");
-                msg(player, "&7Score for &f" + inputs.targetPlayers + " &7players @ VD &f"
-                        + inputs.viewDistance + "&7: &b" + score + "/100");
-                msg(player, "&7Verdict: &f" + verdict);
-                msg(player, "&7" + summary);
-                msg(player, "&7Saved: &f" + reportPath);
+                msgKey(player, "result.complete");
+                msgFmt(player, "result.score",
+                        Integer.valueOf(inputs.targetPlayers),
+                        Integer.valueOf(inputs.viewDistance),
+                        Integer.valueOf(score));
+                msgFmt(player, "result.verdict", verdict);
+                msgFmt(player, "result.summary", summary);
+                msgFmt(player, "result.saved", reportPath);
                 if (finalUrl != null) {
-                    msg(player, "&aReport: &f" + finalUrl);
-                } else if (plugin.getConfig().getBoolean("mclogs.enabled", true)) {
-                    msg(player, "&eUpload to mclo.gs failed — share the local report file.");
+                    msgFmt(player, "result.url", finalUrl);
+                } else if (Defaults.MCLOGS_ENABLED) {
+                    msgKey(player, "result.upload-failed");
                 }
             }
         });
@@ -390,8 +389,15 @@ public final class BenchWizard implements Listener {
         return "low".equalsIgnoreCase(s) || "mid".equalsIgnoreCase(s) || "high".equalsIgnoreCase(s);
     }
 
-    private void msg(Player player, String message) {
-        final String out = color(plugin.getConfig().getString("messages.prefix", "&8[&bChunkBench&8]&r ") + message);
+    private void msgKey(Player player, String key) {
+        send(player, plugin.lang().prefixed(key));
+    }
+
+    private void msgFmt(Player player, String key, Object... args) {
+        send(player, plugin.lang().prefixedFormat(key, args));
+    }
+
+    private void send(Player player, final String out) {
         if (Bukkit.isPrimaryThread()) {
             player.sendMessage(out);
         } else {
@@ -412,9 +418,5 @@ public final class BenchWizard implements Listener {
             return String.valueOf((int) Math.rint(gb));
         }
         return String.format(java.util.Locale.US, "%.1f", gb);
-    }
-
-    private static String color(String s) {
-        return ChatColor.translateAlternateColorCodes('&', s);
     }
 }

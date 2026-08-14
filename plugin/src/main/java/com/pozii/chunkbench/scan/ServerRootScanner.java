@@ -1,11 +1,10 @@
 package com.pozii.chunkbench.scan;
 
 import com.pozii.chunkbench.ChunkBenchPlugin;
-import org.bukkit.configuration.file.FileConfiguration;
+import com.pozii.chunkbench.Defaults;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -30,17 +29,13 @@ public final class ServerRootScanner {
     }
 
     public ScanResult scan(File root) {
-        FileConfiguration cfg = plugin.getConfig();
-        int maxDepth = cfg.getInt("scan.max-depth", 6);
-        int maxFiles = cfg.getInt("scan.max-files", 2500);
+        int maxDepth = Defaults.SCAN_MAX_DEPTH;
+        int maxFiles = Defaults.SCAN_MAX_FILES;
         Set<String> exclude = new HashSet<String>();
-        for (String s : cfg.getStringList("scan.exclude-dirs")) {
+        for (String s : Defaults.SCAN_EXCLUDE_DIRS) {
             exclude.add(s.toLowerCase(Locale.US));
         }
-        List<String> markers = cfg.getStringList("scan.world-markers");
-        if (markers == null || markers.isEmpty()) {
-            markers = Arrays.asList("level.dat", "region", "DIM-1", "DIM1", "dimensions");
-        }
+        List<String> markers = new ArrayList<String>(Defaults.SCAN_WORLD_MARKERS);
 
         List<String> startupScripts = new ArrayList<String>();
         List<String> serverJars = new ArrayList<String>();
