@@ -1,5 +1,5 @@
 # ChunkBench __VERSION__
-Supports: Bukkit / Spigot / Paper **1.8.8 – 26.2**
+Supports: Bukkit / Spigot / Paper **1.8.8 - 26.2**
 
 Today we are releasing **ChunkBench __VERSION__**, a bot-less capacity audit plugin for your own Minecraft Java servers.
 
@@ -19,7 +19,7 @@ Changes included in this release are listed below (auto-generated from commits a
 2. Place it in your server `plugins/` folder
 3. Restart the server
 4. Run `/chunkbench` in-game (permission `chunkbench.run`, default: OP)
-5. Complete the wizard (target players → RAM → CPU)
+5. Complete the wizard (target players -> RAM -> CPU)
 
 Reports are saved under `plugins/ChunkBench/reports/` and can be uploaded to [mclo.gs](https://mclo.gs) as source **ChunkBench**.
 
