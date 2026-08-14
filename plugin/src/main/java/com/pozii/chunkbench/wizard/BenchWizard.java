@@ -265,7 +265,6 @@ public final class BenchWizard implements Listener {
         sessions.remove(player.getUniqueId());
         lastRun.put(player.getUniqueId(), System.currentTimeMillis());
         msg(player, "&aCPU: &f" + session.cpuCores + " cores &7(" + session.cpuClass + ")");
-        msg(player, "&bScanning this server (worlds excluded)...");
 
         final BenchInputs inputs = new BenchInputs(
                 session.targetPlayers,
