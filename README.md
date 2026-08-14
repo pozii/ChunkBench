@@ -29,6 +29,24 @@ Output: `build/libs/chunkbench-1.0.0.jar`
 
 Requires JDK 8+ to build (bytecode targets Java 8 for wide server compatibility).
 
+## CI / Releases
+
+GitHub Actions:
+
+- **CI** — builds the jar on every push/PR to `main` and uploads a build **artifact**
+- **Release** — on tag `v*` (or manual **workflow_dispatch**), builds the jar, creates a GitHub Release with install notes + **auto-generated release notes** from commits, and attaches:
+  - `chunkbench.jar`
+  - `chunkbench-<version>.jar`
+
+Publish a release:
+
+```bash
+git tag -a v1.0.1 -m "Release v1.0.1"
+git push origin v1.0.1
+```
+
+Or run **Actions → Release → Run workflow** and enter `1.0.1`.
+
 ## License
 
 **PolyForm Shield 1.0.0** — see [LICENSE](LICENSE).
